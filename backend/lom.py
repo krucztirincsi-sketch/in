@@ -19,17 +19,32 @@ Available Atomic Functions:
 2. `calculate_total(data: list, amount_field: str) -> float`
    Calculates the sum of an amount field across data.
 
-3. `render_bar_chart(title: str, data_dict: dict) -> str`
+3. `calculate_average(data: list, amount_field: str) -> float`
+   Calculates the average of an amount field.
+
+4. `filter_by_date(data: list, date_field: str, start_date: str, end_date: str) -> list`
+   Filters data returning items between start_date and end_date.
+
+5. `get_top_n(data: list, amount_field: str, n: int) -> list`
+   Returns the top N items sorted descending by amount_field.
+
+6. `render_bar_chart(title: str, data_dict: dict) -> str`
    Renders a Bar Chart. 'data_dict' must be the output of aggregate_by_category.
 
-4. `render_pie_chart(title: str, data_dict: dict) -> str`
+7. `render_pie_chart(title: str, data_dict: dict) -> str`
    Renders a Pie Chart. 'data_dict' must be the output of aggregate_by_category.
 
-5. `render_summary_text(title: str, text: str, sentiment: str) -> str`
+8. `render_line_chart(title: str, data_dict: dict) -> str`
+   Renders a Line Chart for time series. 'data_dict' must be the output of aggregate_by_category.
+
+9. `render_summary_text(title: str, text: str, sentiment: str) -> str`
    Renders a text box. sentiment can be "positive", "negative", "neutral", "calm", "anxious".
 
-6. `render_table(title: str, data: list) -> str`
-   Renders a data table from raw data list.
+10. `render_kpi_card(title: str, value: float, trend: str, sentiment: str) -> str`
+   Renders a business KPI card. sentiment colors the value.
+
+11. `render_interactive_table(title: str, data: list) -> str`
+   Renders a highly interactive data table with search and sort from raw data list.
 """
 
 def generate_execution_plan(intent: str, context: dict, data_schema: dict) -> dict:
@@ -106,7 +121,7 @@ def _mock_execution_plan(intent: str, context: dict) -> dict:
     emotion = context.get("emotion", "neutral")
     sentiment = "calm" if emotion in ["anxious", "stressed"] else "neutral"
 
-    # A generic plan for testing based on common expense data structure
+    # A more advanced generic plan showcasing new atomic functions
     plan = {
         "steps": [
             {
@@ -116,12 +131,13 @@ def _mock_execution_plan(intent: str, context: dict) -> dict:
                 "is_ui": False
             },
             {
-                "id": "render_total",
-                "function": "render_summary_text",
+                "id": "render_kpi",
+                "function": "render_kpi_card",
                 "inputs": {
-                    "title": "Total Value",
-                    "text": "$STEP_calc_total",
-                    "sentiment": sentiment
+                    "title": "Total Expense",
+                    "value": "$STEP_calc_total",
+                    "trend": "Requires Attention",
+                    "sentiment": "negative" if emotion == "anxious" else "neutral"
                 },
                 "is_ui": True
             },
@@ -135,6 +151,18 @@ def _mock_execution_plan(intent: str, context: dict) -> dict:
                 "id": "render_chart",
                 "function": "render_pie_chart",
                 "inputs": {"title": "Breakdown by Category", "data_dict": "$STEP_agg_cat"},
+                "is_ui": True
+            },
+            {
+                "id": "get_top",
+                "function": "get_top_n",
+                "inputs": {"data": "$RAW_DATA", "amount_field": "amount", "n": 5},
+                "is_ui": False
+            },
+            {
+                "id": "render_table",
+                "function": "render_interactive_table",
+                "inputs": {"title": "Top Transactions", "data": "$STEP_get_top"},
                 "is_ui": True
             }
         ]
