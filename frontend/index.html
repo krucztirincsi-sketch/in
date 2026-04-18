@@ -129,19 +129,37 @@
     </div>
 
     <script>
-        document.getElementById('compileBtn').addEventListener('click', async () => {
+        // Expose a global trigger function that atomic components can call
+        window.slcTrigger = function(newIntent) {
+            console.log("SLC Triggered with new intent:", newIntent);
+            // Update the intent input to reflect the current state
+            document.getElementById('intent').value = newIntent;
+            // Initiate compilation
+            compileLogic();
+        };
+
+        async function compileLogic() {
             const btn = document.getElementById('compileBtn');
             const target = document.getElementById('render-target');
             const planDebug = document.getElementById('plan-debug');
 
+            // Visual feedback of recompilation
+            target.style.opacity = 0.5;
             btn.disabled = true;
             btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Compiling...';
-            target.innerHTML = '<div class="text-center mt-5"><div class="spinner-grow text-danger" role="status"></div><p class="mt-3 text-muted">LOM mapping intent to atomic functions...</p></div>';
 
             try {
                 const intent = document.getElementById('intent').value;
-                const context = JSON.parse(document.getElementById('context').value);
-                const data = JSON.parse(document.getElementById('data').value);
+                let contextStr = document.getElementById('context').value;
+                let dataStr = document.getElementById('data').value;
+
+                let context, data;
+                try {
+                    context = JSON.parse(contextStr);
+                    data = JSON.parse(dataStr);
+                } catch (e) {
+                    throw new Error("Invalid JSON in Context or Data input.");
+                }
 
                 const response = await fetch('http://127.0.0.1:8000/compile', {
                     method: 'POST',
@@ -157,8 +175,9 @@
 
                 // Render the dynamic HTML
                 target.innerHTML = result.html_bundle;
+                target.style.opacity = 1; // Restore visibility
 
-                // Execute any scripts embedded in the HTML (like Chart.js init)
+                // Execute any scripts embedded in the HTML
                 const scripts = target.getElementsByTagName('script');
                 for (let i = 0; i < scripts.length; i++) {
                     eval(scripts[i].innerText);
@@ -169,11 +188,14 @@
 
             } catch (error) {
                 target.innerHTML = `<div class="alert alert-danger m-4">${error.message}</div>`;
+                target.style.opacity = 1;
             } finally {
                 btn.disabled = false;
                 btn.innerText = 'Compile Micro-App';
             }
-        });
+        }
+
+        document.getElementById('compileBtn').addEventListener('click', compileLogic);
     </script>
 </body>
 </html>

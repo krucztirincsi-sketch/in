@@ -33,6 +33,10 @@ def filter_by_date(data: list, date_field: str, start_date: str, end_date: str) 
             filtered.append(item)
     return filtered
 
+def filter_by_exact_match(data: list, field: str, value: str) -> list:
+    """Filters data returning items where item[field] == value."""
+    return [item for item in data if str(item.get(field, "")) == str(value)]
+
 def get_top_n(data: list, amount_field: str, n: int) -> list:
     """Sorts data descending by amount_field and returns the top n items."""
     return sorted(data, key=lambda x: x.get(amount_field, 0), reverse=True)[:n]
@@ -250,13 +254,28 @@ def render_interactive_table(title: str, data: list) -> str:
 
     table_id = f"table_{hash(title) % 100000}"
 
+    # Add an onclick handler to rows to trigger the Liquid Event Loop
+    # We pass the category or the first column as the identifier
+    first_col = headers[0] if headers else ""
+
+    tbody = ""
+    for row in data:
+        row_id_val = str(row.get('category', row.get(first_col, '')))
+        # Escape quotes for JS
+        row_id_val = row_id_val.replace("'", "\\'")
+        row_html = f"<tr style='cursor: pointer;' onclick=\"if(window.slcTrigger) window.slcTrigger('Analyze category: {row_id_val}')\">"
+        row_html += "".join(f"<td>{row.get(h, '')}</td>" for h in headers)
+        row_html += "</tr>"
+        tbody += row_html
+
     html = f"""
-    <div class="card my-3 shadow-sm">
+    <div class="card my-3 shadow-sm border-0">
         <div class="card-body">
             <h5 class="card-title">{title}</h5>
+            <p class="text-muted small">Click any row to instantly drill down into details.</p>
             <div class="table-responsive">
-                <table id="{table_id}" class="table table-striped table-hover" style="width:100%">
-                    <thead><tr>{thead}</tr></thead>
+                <table id="{table_id}" class="table table-hover align-middle" style="width:100%">
+                    <thead class="table-light"><tr>{thead}</tr></thead>
                     <tbody>{tbody}</tbody>
                 </table>
             </div>
@@ -264,9 +283,24 @@ def render_interactive_table(title: str, data: list) -> str:
     </div>
     <script>
     setTimeout(() => {{
-        $('#{table_id}').DataTable();
+        $('#{table_id}').DataTable({{
+            pageLength: 5,
+            lengthMenu: [5, 10, 20]
+        }});
     }}, 200);
     </script>
+    """
+    return html
+
+def render_action_button(label: str, target_intent: str) -> str:
+    """Renders a button that triggers a specific intent in the SLC."""
+    safe_intent = target_intent.replace("'", "\\'")
+    html = f"""
+    <div class="my-3">
+        <button class="btn btn-outline-secondary" onclick=\"if(window.slcTrigger) window.slcTrigger('{safe_intent}')\">
+            &larr; {label}
+        </button>
+    </div>
     """
     return html
 
@@ -283,5 +317,7 @@ AVAILABLE_FUNCTIONS = {
     "render_summary_text": render_summary_text,
     "render_table": render_table,
     "render_interactive_table": render_interactive_table,
-    "render_kpi_card": render_kpi_card
+    "render_kpi_card": render_kpi_card,
+    "render_action_button": render_action_button,
+    "filter_by_exact_match": filter_by_exact_match
 }

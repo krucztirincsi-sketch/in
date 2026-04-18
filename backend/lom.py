@@ -121,7 +121,50 @@ def _mock_execution_plan(intent: str, context: dict) -> dict:
     emotion = context.get("emotion", "neutral")
     sentiment = "calm" if emotion in ["anxious", "stressed"] else "neutral"
 
-    # A more advanced generic plan showcasing new atomic functions
+    # STATE AWARENESS: Check if intent is asking for details
+    if "Analyze category:" in intent:
+        category_name = intent.replace("Analyze category:", "").strip()
+        return {
+            "steps": [
+                {
+                    "id": "back_btn",
+                    "function": "render_action_button",
+                    "inputs": {"label": "Back to Global Dashboard", "target_intent": "Show me the dashboard"},
+                    "is_ui": True
+                },
+                {
+                    "id": "filter_data",
+                    "function": "filter_by_exact_match",
+                    "inputs": {"data": "$RAW_DATA", "field": "category", "value": category_name},
+                    "is_ui": False
+                },
+                {
+                    "id": "calc_cat_total",
+                    "function": "calculate_total",
+                    "inputs": {"data": "$STEP_filter_data", "amount_field": "amount"},
+                    "is_ui": False
+                },
+                {
+                    "id": "render_kpi",
+                    "function": "render_kpi_card",
+                    "inputs": {
+                        "title": f"{category_name} - Total Spent",
+                        "value": "$STEP_calc_cat_total",
+                        "trend": "",
+                        "sentiment": sentiment
+                    },
+                    "is_ui": True
+                },
+                {
+                    "id": "render_table",
+                    "function": "render_interactive_table",
+                    "inputs": {"title": f"All {category_name} Transactions", "data": "$STEP_filter_data"},
+                    "is_ui": True
+                }
+            ]
+        }
+
+    # DEFAULT STATE: A more advanced generic plan showcasing new atomic functions
     plan = {
         "steps": [
             {
