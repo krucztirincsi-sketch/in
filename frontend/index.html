@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SLC - Subjective Logic Compiler Shell</title>
+    <!-- Bootstrap for quick layouting -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Chart.js for atomic charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- DataTables for interactive atomic tables -->
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <script type="text/javascript" src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <style>
+        body {
+            background-color: #f4f6f9;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background-color: #1a1a2e;
+            color: #e94560;
+            padding: 1rem 2rem;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .main-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        .sidebar {
+            width: 400px;
+            background-color: #fff;
+            border-right: 1px solid #ddd;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .canvas-area {
+            flex: 1;
+            padding: 2rem;
+            overflow-y: auto;
+            background-color: #f4f6f9;
+        }
+        .canvas-inner {
+            background-color: #fff;
+            border-radius: 8px;
+            min-height: 100%;
+            padding: 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            transition: all 0.5s ease;
+        }
+        textarea {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        #plan-debug {
+            font-size: 0.8rem;
+            background-color: #2b2b2b;
+            color: #a9b7c6;
+            padding: 1rem;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header d-flex justify-content-between align-items-center">
+        <h2 class="m-0 fw-bold">SLC Shell // <span class="fs-5 text-light fw-light">Liquid Software Generator</span></h2>
+        <span class="badge bg-secondary">System: Online</span>
+    </div>
+
+    <div class="main-container">
+        <!-- Input Panel -->
+        <div class="sidebar">
+            <h5 class="mb-3">Context Injector</h5>
+
+            <div class="mb-3">
+                <label class="form-label text-muted fw-bold">User Intent</label>
+                <input type="text" id="intent" class="form-control" value="I need to see where my money went. Make it simple." placeholder="What do you want to do?">
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted fw-bold">Subjective Context (JSON)</label>
+                <textarea id="context" class="form-control" rows="3">{
+  "emotion": "anxious",
+  "vision_preference": "minimal"
+}</textarea>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label text-muted fw-bold">Raw Data (JSON Array)</label>
+                <textarea id="data" class="form-control" rows="6">[
+  {"date": "2023-10-01", "category": "Housing", "amount": 1500},
+  {"date": "2023-10-02", "category": "Food", "amount": 45.50},
+  {"date": "2023-10-03", "category": "Transport", "amount": 30},
+  {"date": "2023-10-04", "category": "Food", "amount": 120},
+  {"date": "2023-10-05", "category": "Entertainment", "amount": 200}
+]</textarea>
+            </div>
+
+            <button id="compileBtn" class="btn btn-danger w-100 py-2 fw-bold mb-4">
+                Compile Micro-App
+            </button>
+
+            <div>
+                <label class="form-label text-muted fw-bold">LOM Execution Plan (Debug)</label>
+                <pre id="plan-debug">Awaiting compilation...</pre>
+            </div>
+        </div>
+
+        <!-- Dynamic Rendering Area -->
+        <div class="canvas-area">
+            <div class="canvas-inner" id="render-target">
+                <div class="text-center text-muted mt-5">
+                    <h4 class="fw-light">Waiting for Subjetive Logic Compilation...</h4>
+                    <p>Enter your context on the left and click Compile.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Expose a global trigger function that atomic components can call
+        window.slcTrigger = function(newIntent) {
+            console.log("SLC Triggered with new intent:", newIntent);
+            // Update the intent input to reflect the current state
+            document.getElementById('intent').value = newIntent;
+            // Initiate compilation
+            compileLogic();
+        };
+
+        async function compileLogic() {
+            const btn = document.getElementById('compileBtn');
+            const target = document.getElementById('render-target');
+            const planDebug = document.getElementById('plan-debug');
+
+            // Visual feedback of recompilation
+            target.style.opacity = 0.5;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Compiling...';
+
+            try {
+                const intent = document.getElementById('intent').value;
+                let contextStr = document.getElementById('context').value;
+                let dataStr = document.getElementById('data').value;
+
+                let context, data;
+                try {
+                    context = JSON.parse(contextStr);
+                    data = JSON.parse(dataStr);
+                } catch (e) {
+                    throw new Error("Invalid JSON in Context or Data input.");
+                }
+
+                const response = await fetch('http://127.0.0.1:8000/compile', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ intent, context, data })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                // Render the dynamic HTML
+                target.innerHTML = result.html_bundle;
+                target.style.opacity = 1; // Restore visibility
+
+                // Execute any scripts embedded in the HTML
+                const scripts = target.getElementsByTagName('script');
+                for (let i = 0; i < scripts.length; i++) {
+                    eval(scripts[i].innerText);
+                }
+
+                // Show the debug plan
+                planDebug.innerText = JSON.stringify(result.execution_plan, null, 2);
+
+            } catch (error) {
+                target.innerHTML = `<div class="alert alert-danger m-4">${error.message}</div>`;
+                target.style.opacity = 1;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Compile Micro-App';
+            }
+        }
+
+        document.getElementById('compileBtn').addEventListener('click', compileLogic);
+    </script>
+</body>
+</html>
